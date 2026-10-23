@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor de prendas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23202c33'/%3E%3Cpath d='M16 9.5a2.5 2.5 0 1 1 2.5 2.5L16 14l-9 6.5c-.9.7-.4 2 .7 2h16.6c1.1 0 1.6-1.3.7-2L16 14' fill='none' stroke='%23e9edef' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #0b141a;
+  --panel: #111b21;
+  --bar: #202c33;
+  --raised: #2a3942;
+  --line: #26343c;
+  --text: #e9edef;
+  --muted: #8696a0;
+  --green: #00a884;
+  --green-deep: #005c4b;
+  --green-chip: #0a332c;
+  --danger: #f7838f;
+  --plate: #ffffff;
+  --tile: 220px;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  color-scheme: dark;
+  font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg);
+  accent-color: var(--green);
+  caret-color: var(--green);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { display: grid; grid-template: auto 1fr / minmax(0, 1fr); overflow: hidden; }
+::selection { background: var(--green-deep); color: var(--text); }
+* { scrollbar-width: thin; scrollbar-color: #374248 transparent; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: 6px; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+p, h1, h2, h3 { margin: 0; }
+svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+[hidden] { display: none !important; }
+
+/* ---------- barra superior ---------- */
+.top { background: var(--bar); position: relative; z-index: 5; }
+.bar { min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 9px 16px; flex-wrap: wrap; }
+.where { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 0 1 auto; }
+.where h1 { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.where .n { color: var(--muted); white-space: nowrap; }
+.search { flex: 1 1 320px; max-width: 560px; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px;
+  background: var(--raised); border-radius: 19px; color: var(--muted); }
+.search:focus-within { color: var(--text); }
+.search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--text); font: inherit; }
+.search input::placeholder { color: var(--muted); }
+.search .clear { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: var(--muted); }
+.search .clear:hover { background: var(--bar); color: var(--text); }
+.tools { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 18px; color: var(--text); white-space: nowrap;
+  transition: background .2s var(--ease), color .2s var(--ease); }
+.btn:hover { background: var(--raised); }
+.btn .sub { color: var(--muted); }
+.btn.icon { width: 36px; padding: 0; justify-content: center; color: var(--muted); }
+.btn.icon:hover { color: var(--text); }
+.toggle .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--muted); display: grid; place-items: center; transition: inherit; }
+.toggle .dot svg { width: 12px; height: 12px; stroke-width: 3; opacity: 0; }
+.toggle[aria-pressed="true"] { color: var(--green); }
+.toggle[aria-pressed="true"] .dot { background: var(--green); border-color: var(--green); color: var(--panel); }
+.toggle[aria-pressed="true"] .dot svg { opacity: 1; }
+.toggle[aria-pressed="true"] .sub { color: var(--green); }
+.zoom { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); padding: 0 8px; }
+.zoom input { width: 96px; accent-color: var(--muted); }
+.btn.solid { background: var(--green); color: var(--panel); font-weight: 600; }
+.btn.solid:hover { background: #06cf9c; }
+.btn.solid:disabled { background: var(--raised); color: var(--muted); cursor: default; }
+.btn.line { box-shadow: inset 0 0 0 1px var(--raised); }
+
+.chips { display: flex; gap: 8px; padding: 0 16px 12px; overflow-x: auto; scrollbar-width: none; }
+.chip { flex: none; height: 32px; padding: 0 14px; border-radius: 16px; background: var(--raised); color: var(--muted); white-space: nowrap;
+  transition: background .2s var(--ease), color .2s var(--ease); }
+.chip b { color: var(--text); font-weight: 600; margin-right: 6px; }
+.chip:hover { background: #33444e; }
+.chip[aria-pressed="true"] { background: var(--green-chip); color: var(--green); }
+.chip[aria-pressed="true"] b { color: var(--green); }
+
+/* ---------- muro ---------- */
+main { display: flex; min-height: 0; }
+#wall { flex: 1; min-width: 0; overflow-y: auto; padding: 0 16px 64px; scroll-padding-top: 56px; }
+.sec { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+.sec-h { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 22px 0 10px; background: var(--bg); }
+.sec-h h2 { font-size: 15px; font-weight: 400; color: var(--muted); display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sec-h h2 span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-h h2 b { color: var(--text); font-weight: 600; white-space: nowrap; }
+.sec-h h2 svg { width: 16px; height: 16px; }
+.sec-h .n { margin-left: auto; color: var(--muted); white-space: nowrap; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr)); gap: 12px; }
+
+.tile { background: var(--panel); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  transition: background .2s var(--ease), box-shadow .2s var(--ease); }
+.tile:hover { background: var(--bar); }
+.tile.sel { background: var(--bar); box-shadow: 0 0 0 2px var(--text); }
+.tile.flash { animation: flash 1.6s var(--ease); }
+@keyframes flash { 0%, 30% { box-shadow: 0 0 0 3px var(--green); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.plate { display: block; width: 100%; aspect-ratio: 4 / 5; background: var(--raised); border-radius: 6px; overflow: hidden; position: relative; }
+.plate img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.plate.broken::after, .big.broken::after { content: "Sin vista previa"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); background: var(--raised); }
+.thumbs { display: flex; gap: 4px; }
+.thumbs img { width: 40px; height: 40px; border-radius: 5px; background: var(--raised); object-fit: cover; cursor: pointer; opacity: .55;
+  transition: opacity .15s var(--ease); }
+.thumbs img:hover, .thumbs img.on { opacity: 1; }
+.thumbs .more { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 5px; background: var(--raised); color: var(--muted); }
+.tile .thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tile .thumbs img, .tile .thumbs .more { width: 100%; height: auto; aspect-ratio: 1; }
+.cap { padding: 2px 4px 4px; display: grid; gap: 4px; min-width: 0; }
+.sizes { display: flex; flex-wrap: wrap; gap: 4px; }
+.sz { height: 22px; padding: 0 7px; border-radius: 5px; background: var(--raised); font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+.sz i { font-style: normal; font-weight: 400; color: var(--muted); }
+.sz.none { background: none; padding: 0; font-weight: 400; color: var(--muted); }
+.name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name .d { color: var(--muted); }
+
+.empty { min-height: 100%; display: grid; place-content: center; justify-items: center; gap: 14px; text-align: center; padding: 40px 16px; }
+.empty h2 { font-size: 20px; font-weight: 600; }
+.empty p { color: var(--muted); max-width: 46ch; }
+.empty .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.empty svg.big-i { width: 48px; height: 48px; stroke-width: 1.4; color: var(--muted); }
+
+/* ---------- panel de la prenda ---------- */
+.panel { width: 400px; flex: none; background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; display: flex; flex-direction: column; }
+.d-head { height: 56px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--bar); position: sticky; top: 0; z-index: 1; }
+.d-head h2 { font-size: 16px; font-weight: 400; }
+.d-body { padding: 16px; display: grid; gap: 18px; }
+.big { display: flex; justify-content: center; width: 100%; position: relative; cursor: zoom-in; }
+.big img { height: 34vh; max-width: 100%; object-fit: cover; border-radius: 8px; background: var(--raised); display: block; }
+.d-body .thumbs img { width: 56px; height: 56px; }
+.d-title h3 { font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
+.d-title p { color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+.d-label { color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.step { background: var(--bg); border-radius: 8px; padding: 6px 4px 4px; display: grid; justify-items: center; gap: 2px; box-shadow: inset 0 0 0 1px transparent;
+  transition: box-shadow .2s var(--ease); }
+.step .lbl { font-weight: 600; color: var(--muted); }
+.step.on .lbl { color: var(--text); }
+.step.changed { box-shadow: inset 0 0 0 1px var(--muted); }
+.step .ctl { display: flex; align-items: center; }
+.step .ctl button { width: 26px; height: 28px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); }
+.step .ctl button:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+.step .ctl button:disabled { opacity: .3; cursor: default; }
+.step .ctl svg { width: 16px; height: 16px; }
+.step output { min-width: 20px; text-align: center; font-weight: 600; }
+.step:not(.on) output { color: var(--muted); font-weight: 400; }
+.preview { background: var(--bg); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+.preview .old { color: var(--muted); text-decoration: line-through; overflow-wrap: anywhere; }
+.preview .new { font-weight: 600; overflow-wrap: anywhere; }
+.preview .warn { color: var(--danger); }
+.d-foot { position: sticky; bottom: 0; margin-top: auto; padding: 12px 16px 16px; display: grid; gap: 10px; background: var(--panel); border-top: 1px solid var(--line); }
+.d-foot.nudge .preview { animation: nudge 1.4s var(--ease); }
+@keyframes nudge { 0%, 35% { box-shadow: inset 0 0 0 2px var(--text); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
+.d-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- nueva prenda ---------- */
+.mk-sec { display: grid; gap: 8px; }
+.mk-sec > p { color: var(--muted); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.add { display: inline-flex; align-items: center; gap: 4px; background: none; box-shadow: inset 0 0 0 1px var(--raised); }
+.chip.add svg { width: 16px; height: 16px; }
+.chip i { font-style: normal; color: var(--muted); margin-left: 6px; }
+.field { width: 100%; height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; outline: 0; }
+.field::placeholder { color: var(--muted); }
+.field:focus { box-shadow: inset 0 0 0 2px var(--muted); }
+.designs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.design { background: var(--bg); border-radius: 8px; padding: 6px; display: grid; gap: 6px; align-content: start; text-align: left; transition: box-shadow .2s var(--ease); }
+.design:hover { box-shadow: inset 0 0 0 1px var(--muted); }
+.design[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--text); }
+.design b { font-weight: 600; padding: 0 2px; }
+.design .ph { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+.design .ph img, .design .ph span { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 5px; background: var(--raised); display: grid; place-items: center; color: var(--muted); }
+.dls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.dl { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--raised); }
+.dl img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dl[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: -2px; }
+.dl .n { position: absolute; top: 4px; right: 4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--text); color: var(--panel); font-weight: 600; display: grid; place-items: center; }
+.mk-empty { color: var(--muted); padding: 12px; background: var(--bg); border-radius: 8px; overflow-wrap: anywhere; }
+.preview .path { color: var(--muted); overflow-wrap: anywhere; }
+.d-actions .hint { color: var(--muted); align-self: center; }
+
+/* ---------- visor a pantalla completa ---------- */
+#viewer { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: rgba(11, 20, 26, .97); color: var(--text); }
+#viewer::backdrop { background: transparent; }
+#viewer[open] { display: grid; grid-template-rows: 56px 1fr auto; }
+.v-head { display: flex; align-items: center; gap: 12px; padding: 0 12px 0 20px; }
+.v-head p { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v-head .n { color: var(--muted); }
+.v-stage { position: relative; min-height: 0; overflow: auto; display: grid; place-items: center; }
+.v-stage img { max-width: calc(100vw - 160px); max-height: calc(100vh - 150px); background: var(--plate); border-radius: 4px; cursor: zoom-in; display: block; }
+.v-stage.full { place-items: start center; }
+.v-stage.full img { max-width: none; max-height: none; cursor: zoom-out; }
+.v-nav { position: fixed; top: 50%; translate: 0 -50%; width: 48px; height: 48px; border-radius: 50%; background: var(--bar); display: grid; place-items: center; }
+.v-nav:hover { background: var(--raised); }
+.v-nav.prev { left: 16px; } .v-nav.next { right: 16px; }
+.v-strip { display: flex; justify-content: center; gap: 6px; padding: 10px 16px 16px; }
+.v-strip img { width: 52px; height: 52px; }
+
+/* ---------- aviso ---------- */
+#toast { position: fixed; left: 50%; bottom: 24px; translate: -50% 0; z-index: 10; max-width: min(640px, calc(100vw - 32px));
+  display: flex; align-items: center; gap: 14px; padding: 10px 10px 10px 16px; border-radius: 10px; background: var(--bar);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45); transition: opacity .25s var(--ease), translate .35s var(--ease); }
+/* Guardado = globo de mensaje enviado, con cola y doble check. */
+#toast.ok { background: var(--green-deep); border-bottom-right-radius: 2px; }
+#toast.ok::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 8px; height: 10px; background: var(--green-deep); clip-path: polygon(0 0, 0 100%, 100% 100%); }
+#toast .ticks { width: 18px; height: 18px; color: var(--text); }
+#toast.err { box-shadow: 0 6px 24px rgba(0, 0, 0, .45), inset 0 0 0 1px var(--danger); }
+#toast:not(.show) { opacity: 0; translate: -50% 12px; pointer-events: none; }
+#toast .msg { min-width: 0; overflow-wrap: anywhere; }
+#toast .msg s { color: rgba(233, 237, 239, .85); }
+#toast .btn { height: 32px; background: rgba(0, 0, 0, .2); }
+
+@media (max-width: 900px) {
+  .panel { position: fixed; inset: 0; width: auto; z-index: 6; border: 0; }
+  .zoom { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9L20 8.5"/><path d="M20 3.5v5h-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-ticks" viewBox="0 0 24 24"><path d="M2 12.5l4.5 4.5L15.5 7.5M11 16l1 1L21.5 7.5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></symbol>
+  <symbol id="i-hanger" viewBox="0 0 24 24"><path d="M12 6.5a2.5 2.5 0 1 1 2.5 2.5L12 11l-8.3 6c-.9.7-.4 2 .7 2h15.2c1.1 0 1.6-1.3.7-2L12 11"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="bar">
+    <div class="where"><h1 id="rootName">Visor de prendas</h1><span class="n" id="count"></span></div>
+    <label class="search">
+      <svg class="i"><use href="#i-search"/></svg>
+      <input id="q" type="search" placeholder="Buscar color, talla o carpeta" autocomplete="off" spellcheck="false" aria-label="Buscar">
+      <button class="clear" id="qClear" hidden aria-label="Borrar búsqueda"><svg class="i"><use href="#i-x"/></svg></button>
+    </label>
+    <div class="tools">
+      <button class="btn line" id="new" title="Crear la carpeta de una prenda nueva con fotos de Descargas"><svg class="i"><use href="#i-plus"/></svg>Nueva prenda</button>
+      <button class="btn toggle" id="tNoUsar" aria-pressed="false" title="Mostrar u ocultar las carpetas que empiezan por «NO USAR»">
+        <span class="dot"><svg class="i"><use href="#i-check"/></svg></span>NO USAR <span class="sub" id="nNoUsar"></span>
+      </button>
+      <button class="btn toggle" id="tTela" aria-pressed="false" title="Mostrar u ocultar las fotos de tela">
+        <span class="dot"><svg class="i"><use href="#i-check"/></svg></span>Telas
+      </button>
+      <label class="zoom" title="Tamaño de las fotos"><svg class="i"><use href="#i-grid"/></svg><input id="zoom" type="range" min="160" max="380" step="10" aria-label="Tamaño de las fotos"></label>
+      <button class="btn icon" id="reload" title="Volver a leer las carpetas" aria-label="Volver a leer las carpetas"><svg class="i"><use href="#i-refresh"/></svg></button>
+      <button class="btn line" id="pick"><svg class="i"><use href="#i-folder"/></svg>Cambiar carpeta</button>
+    </div>
+  </div>
+  <nav class="chips" id="chips" aria-label="Zonas"></nav>
+</header>
+
+<main>
+  <div id="wall" tabindex="-1"></div>
+  <aside id="drawer" class="panel" hidden aria-label="Prenda seleccionada"></aside>
+  <aside id="maker" class="panel" hidden aria-label="Nueva prenda"></aside>
+</main>
+
+<dialog id="viewer" aria-label="Foto a pantalla completa">
+  <div class="v-head">
+    <p><span id="vName"></span> <span class="n" id="vNum"></span></p>
+    <button class="btn icon" id="vClose" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="v-stage" id="vStage"><img id="vImg" alt=""></div>
+  <div class="v-strip thumbs" id="vStrip"></div>
+  <button class="v-nav prev" id="vPrev" aria-label="Foto anterior"><svg class="i"><use href="#i-back"/></svg></button>
+  <button class="v-nav next" id="vNext" aria-label="Foto siguiente"><svg class="i"><use href="#i-chev"/></svg></button>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"><span class="msg"></span></div>
+
+<script>
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
+const SIZE_RE = /^(?:\d+\.)?(xs|s|m|l|xl|[2-9]xl)$/i;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const fold = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const icon = (id) => `<svg class="i"><use href="#i-${id}"/></svg>`;
+const imgUrl = (g, file) => '/img/' + [g.path, file].filter(Boolean).join('/').split('/').map(encodeURIComponent).join('/');
+const units = (g) => Object.values(g.sizes).reduce((a, b) => a + b, 0);
+const plural = (n, one, many) => `${n.toLocaleString('es-CO')} ${n === 1 ? one : many}`;
+const shortZone = (z) => z.replace(/(\s+[\d.]+)+$/, '') || z;
+
+const prefs = (() => { try { return JSON.parse(localStorage.getItem('visor') || '{}'); } catch { return {}; } })();
+const state = {
+  garments: [], folders: [], root: null, missing: false, loading: true,
+  showNoUsar: !!prefs.showNoUsar, showTela: !!prefs.showTela, tile: prefs.tile || 220, zone: prefs.zone || '',
+  q: '', sel: null, draft: null,
+};
+// Formulario de nueva prenda. design: 'new' = siguiente número, '.' = directo en el fit, o el nombre de la carpeta.
+const mk = { zone: prefs.mkZone || '', fit: prefs.mkFit || '', design: prefs.mkDesign ?? null, sizes: {}, color: '', files: [], downloads: null, dlDir: '', adding: '' };
+function savePrefs() {
+  try {
+    localStorage.setItem('visor', JSON.stringify({ showNoUsar: state.showNoUsar, showTela: state.showTela, tile: state.tile, zone: state.zone,
+      mkZone: mk.zone, mkFit: mk.fit, mkDesign: mk.design }));
+  } catch {}
+}
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Visor': '1' }, body: JSON.stringify(body) } : {});
+  const data = await r.json().catch(() => ({ error: 'Respuesta inválida del visor' }));
+  if (!r.ok && !data.error) data.error = `Error ${r.status}`;
+  return data;
+}
+
+function formatName(sizes, rest) {
+  const parts = SIZES.concat(Object.keys(sizes).filter((s) => !SIZES.includes(s))).filter((s) => sizes[s] > 0).map((s) => (sizes[s] > 1 ? `${sizes[s]}.${s}` : s));
+  return [parts.join(', '), rest].filter(Boolean).join(' ');
+}
+
+/* ---------- filtros ---------- */
+function images(g) {
+  const imgs = state.showTela ? g.images : g.images.filter((i) => !i.tela);
+  return imgs.length ? imgs : g.images;
+}
+function matches(g, terms) {
+  const hay = fold(g.path + ' ' + g.name);
+  return terms.every((t) => (SIZE_RE.test(t) ? (g.sizes[t.toUpperCase()] || 0) > 0 : hay.includes(t)));
+}
+function visible() {
+  const terms = fold(state.q).split(/[\s,]+/).filter(Boolean);
+  return state.garments.filter((g) => (state.showNoUsar || !g.noUsar) && matches(g, terms));
+}
+
+/* ---------- render ---------- */
+function sizesHtml(g) {
+  const list = SIZES.concat(Object.keys(g.sizes).filter((s) => !SIZES.includes(s))).filter((s) => g.sizes[s] > 0);
+  if (!list.length) return '<span class="sz none">Sin tallas</span>';
+  return list.map((s) => `<span class="sz">${s}${g.sizes[s] > 1 ? `<i>×${g.sizes[s]}</i>` : ''}</span>`).join('');
+}
+// Sección = zona › fit. Una carpeta numérica es un diseño, no un fit: va en la ficha.
+function secParts(g) {
+  const p = g.group.slice(0, 2);
+  if (p.length === 2 && /^\d+$/.test(p[1])) p.pop();
+  return p;
+}
+function designLabel(g) {
+  const sub = g.group.slice(secParts(g).length);
+  if (!sub.length) return '';
+  return sub.map((p) => (/^\d+$/.test(p) ? `Diseño ${p}` : p)).join(' › ');
+}
+function tileHtml(g) {
+  const imgs = images(g);
+  const d = designLabel(g);
+  const fit = imgs.length > 4 ? 3 : 4;
+  const thumbs = imgs.length > 1
+    ? imgs.slice(0, fit).map((im, i) => `<img src="${imgUrl(g, im.file)}" data-i="${i}" class="${i ? '' : 'on'}" loading="lazy" decoding="async" alt="" title="${esc(im.file)}">`).join('')
+      + (imgs.length > fit ? `<span class="more">+${imgs.length - fit}</span>` : '')
+    : '';
+  return `<article class="tile${state.sel === g.path ? ' sel' : ''}" data-path="${esc(g.path)}">
+    <button class="plate" aria-label="Abrir ${esc(g.name)}"><img src="${imgUrl(g, imgs[0].file)}" loading="lazy" decoding="async" alt=""></button>
+    ${thumbs ? `<div class="thumbs">${thumbs}</div>` : ''}
+    <div class="cap">
+      <p class="sizes">${sizesHtml(g)}</p>
+      <p class="name" title="${esc(g.path || g.name)}">${esc(g.rest || g.name)}${d ? ` <span class="d">· ${esc(d)}</span>` : ''}</p>
+    </div>
+  </article>`;
+}
+
+function renderChips(list) {
+  const zones = new Map();
+  for (const g of list) { const z = g.group[0] ?? ''; zones.set(z, (zones.get(z) || 0) + 1); }
+  if (state.zone && !zones.has(state.zone)) zones.set(state.zone, 0);
+  const shorts = [...zones.keys()].map(shortZone);
+  const label = (z) => (shorts.filter((s) => s === shortZone(z)).length > 1 ? z : shortZone(z));
+  const chip = (z, label, n) => `<button class="chip" data-zone="${esc(z)}" aria-pressed="${state.zone === z}" title="${esc(z || 'Todas las zonas')}"><b>${esc(label)}</b>${n}</button>`;
+  $('#chips').innerHTML = chip('', 'Todo', list.length)
+    + [...zones].filter(([z]) => z).map(([z, n]) => chip(z, label(z), n)).join('');
+}
+
+function render() {
+  const wall = $('#wall');
+  const top = wall.scrollTop;
+  $('#rootName').textContent = state.root ? state.root.split(/[\\/]/).filter(Boolean).pop() : 'Visor de prendas';
+  $('#rootName').title = state.root || '';
+  $('#tNoUsar').setAttribute('aria-pressed', state.showNoUsar);
+  $('#tTela').setAttribute('aria-pressed', state.showTela);
+  const nNo = state.garments.filter((g) => g.noUsar).length;
+  $('#nNoUsar').textContent = nNo || '';
+  $('#tNoUsar').hidden = !nNo;
+  document.documentElement.style.setProperty('--tile', state.tile + 'px');
+
+  if (state.loading) { wall.innerHTML = emptyHtml('Leyendo carpetas…', 'Esto toma unos segundos con Google Drive.', ''); return; }
+  if (!state.root) {
+    $('#count').textContent = ''; $('#chips').innerHTML = '';
+    wall.innerHTML = emptyHtml('Elige la carpeta de fotos', 'Todas las prendas de sus subcarpetas aparecerán juntas en una sola vista, listas para bajar y comparar.',
+      `<button class="btn solid" data-act="pick">${icon('folder')}Elegir carpeta</button>`, 'hanger');
+    return;
+  }
+  if (state.missing) {
+    $('#count').textContent = ''; $('#chips').innerHTML = '';
+    wall.innerHTML = emptyHtml('No encuentro la carpeta', `«${esc(state.root)}» no está disponible. Revisa que Google Drive esté abierto y conectado.`,
+      `<button class="btn solid" data-act="reload">${icon('refresh')}Reintentar</button><button class="btn line" data-act="pick">${icon('folder')}Elegir otra</button>`, 'folder');
+    return;
+  }
+
+  const list = visible();
+  renderChips(list);
+  const shown = state.zone ? list.filter((g) => (g.group[0] ?? '') === state.zone) : list;
+  const total = state.garments.filter((g) => state.showNoUsar || !g.noUsar).length;
+  $('#count').textContent = shown.length === total ? plural(total, 'prenda', 'prendas') : `${shown.length.toLocaleString('es-CO')} de ${plural(total, 'prenda', 'prendas')}`;
+
+  if (!shown.length) {
+    wall.innerHTML = total
+      ? emptyHtml('Nada coincide', state.q ? `Ninguna prenda tiene «${esc(state.q)}»${state.zone ? ` en ${esc(shortZone(state.zone))}` : ''}.` : 'No hay prendas con estos filtros.',
+          `<button class="btn line" data-act="clear">${icon('x')}Quitar filtros</button>`, 'search')
+      : emptyHtml('Esta carpeta no tiene fotos', 'No encontré imágenes dentro de ninguna subcarpeta.', `<button class="btn line" data-act="pick">${icon('folder')}Elegir otra</button>`, 'folder');
+    return;
+  }
+
+  const secs = new Map();
+  for (const g of shown) {
+    const key = secParts(g).join('/');
+    if (!secs.has(key)) secs.set(key, []);
+    secs.get(key).push(g);
+  }
+  wall.innerHTML = [...secs].map(([key, gs]) => {
+    const parts = key ? key.split('/') : [state.root.split(/[\\/]/).pop()];
+    const head = parts.length > 1 ? `<span>${esc(parts[0])}</span>${icon('chev')}<b>${esc(parts[1])}</b>` : `<b>${esc(parts[0])}</b>`;
+    const u = gs.reduce((a, g) => a + units(g), 0);
+    return `<section class="sec"><div class="sec-h"><h2>${head}</h2><span class="n">${plural(gs.length, 'prenda', 'prendas')} · ${plural(u, 'unidad', 'unidades')}</span></div>
+      <div class="grid">${gs.map(tileHtml).join('')}</div></section>`;
+  }).join('');
+  wall.scrollTop = top;
+}
+
+function emptyHtml(title, text, actions, ic) {
+  return `<div class="empty">${ic ? `<svg class="i big-i"><use href="#i-${ic}"/></svg>` : ''}<h2>${title}</h2><p>${text}</p>${actions ? `<div class="row">${actions}</div>` : ''}</div>`;
+}
+
+/* ---------- panel de la prenda ---------- */
+const find = (path) => state.garments.find((g) => g.path === path);
+
+function openDrawer(path) {
+  const g = find(path);
+  if (!g) return closeDrawer();
+  if (state.sel !== path) state.draft = { ...g.sizes };
+  document.querySelectorAll('.tile.sel').forEach((t) => t.classList.remove('sel'));
+  state.sel = path;
+  document.querySelector(`.tile[data-path="${CSS.escape(path)}"]`)?.classList.add('sel');
+  renderDrawer();
+}
+// Con tallas sin guardar, el primer intento de salir avisa; el segundo las descarta.
+let warned = false;
+function holdDraft() {
+  const g = find(state.sel);
+  const dirty = g && Object.keys({ ...g.sizes, ...state.draft }).some((s) => (state.draft[s] || 0) !== (g.sizes[s] || 0));
+  if (!dirty || warned) { warned = false; return false; }
+  warned = true;
+  const f = $('#drawer .d-foot');
+  f.classList.remove('nudge'); void f.offsetWidth; f.classList.add('nudge');
+  toast('Tienes tallas sin guardar. Renombra la carpeta, o repite para descartarlas.');
+  return true;
+}
+function closeDrawer() {
+  state.sel = null; state.draft = null; warned = false;
+  document.querySelectorAll('.tile.sel').forEach((t) => t.classList.remove('sel'));
+  $('#drawer').hidden = true;
+}
+function renderDrawer(keepFocus) {
+  const g = find(state.sel);
+  const dr = $('#drawer');
+  if (!g) return closeDrawer();
+  const focused = keepFocus && document.activeElement?.dataset?.focusKey;
+  const draft = state.draft;
+  const newName = formatName(draft, g.rest);
+  const all = SIZES.concat(Object.keys(g.sizes).filter((s) => !SIZES.includes(s)));
+  const changed = all.some((s) => (draft[s] || 0) !== (g.sizes[s] || 0));
+  const where = [...secParts(g), designLabel(g)].filter(Boolean).join(' › ') || state.root || '';
+  dr.innerHTML = `
+    <div class="d-head"><button class="btn icon" data-act="close" aria-label="Cerrar panel">${icon('x')}</button><h2>Prenda</h2>
+      <button class="btn" data-act="reveal" style="margin-left:auto" title="Abrir esta carpeta en el Explorador de Windows">${icon('open')}Explorador</button></div>
+    <div class="d-body">
+      <button class="big" data-act="view" data-i="0" aria-label="Ver a pantalla completa"><img src="${imgUrl(g, g.images[0].file)}" alt=""></button>
+      ${g.images.length > 1 ? `<div class="thumbs">${g.images.map((im, i) => `<img src="${imgUrl(g, im.file)}" data-i="${i}" class="${i ? '' : 'on'}" alt="" title="${esc(im.file)}">`).join('')}</div>` : ''}
+      <div class="d-title"><h3>${esc(g.rest || g.name)}</h3><p>${esc(where)}</p></div>
+      <div>
+        <p class="d-label"><span>Tallas</span><span>${plural(all.reduce((a, s) => a + (draft[s] || 0), 0), 'unidad', 'unidades')}</span></p>
+        <div class="steps">${all.map((s) => {
+          const n = draft[s] || 0;
+          return `<div class="step${n ? ' on' : ''}${n !== (g.sizes[s] || 0) ? ' changed' : ''}">
+            <span class="lbl">${s}</span>
+            <div class="ctl"><button data-size="${s}" data-d="-1" data-focus-key="${s}-" ${n ? '' : 'disabled'} aria-label="Quitar una ${s}">${icon('minus')}</button><output aria-label="${s}">${n}</output><button data-size="${s}" data-d="1" data-focus-key="${s}+" aria-label="Agregar una ${s}">${icon('plus')}</button></div>
+          </div>`;
+        }).join('')}</div>
+      </div>
+    </div>
+    ${changed ? `<div class="d-foot">
+      <div class="preview"><span class="old">${esc(g.name)}</span>${newName ? `<span class="new">${esc(newName)}</span>` : '<span class="warn">Sin tallas ni color la carpeta quedaría sin nombre.</span>'}</div>
+      <div class="d-actions">
+        <button class="btn solid" data-act="save" ${newName ? '' : 'disabled'}>${icon('check')}Renombrar carpeta</button><button class="btn line" data-act="discard">Descartar</button>
+      </div>
+    </div>` : ''}`;
+  dr.hidden = false;
+  if (focused) dr.querySelector(`[data-focus-key="${focused}"]`)?.focus();
+}
+
+async function rename(g, body, isUndo) {
+  const r = await api('/api/rename', { path: g.path, ...body });
+  if (r.error) return toast(r.error, 'err');
+  const ng = r.garment;
+  const oldPath = g.path;
+  Object.assign(g, ng);
+  if (state.sel === oldPath) { state.sel = ng.path; state.draft = { ...ng.sizes }; }
+  const tile = document.querySelector(`.tile[data-path="${CSS.escape(oldPath)}"]`);
+  if (tile) tile.outerHTML = tileHtml(g);
+  document.querySelector(`.tile[data-path="${CSS.escape(ng.path)}"]`)?.classList.add('flash');
+  if (state.sel) renderDrawer();
+  if (r.old === ng.name) return toast('Sin cambios');
+  if (isUndo) return toast(`Deshecho: vuelve a <b>${esc(ng.name)}</b>`, 'ok');
+  toast(`<s>${esc(r.old)}</s> → <b>${esc(ng.name)}</b>`, 'ok', { label: 'Deshacer', run: () => rename(g, { name: r.old }, true) });
+}
+
+/* ---------- nueva prenda ---------- */
+const isNum = (n) => /^\d+$/.test(n);
+const BAD_NAME = /[<>:"/\\|?*]|[. ]$/;
+function subfolders(path) {
+  const pre = path ? path + '/' : '';
+  return state.folders.filter((f) => f.startsWith(pre) && !f.slice(pre.length).includes('/'))
+    .map((f) => f.slice(pre.length)).filter((n) => !n.toLowerCase().startsWith('no usar'));
+}
+const garmentsIn = (path) => state.garments.filter((g) => g.group.join('/') === path);
+
+// Diseños posibles dentro del fit: siguiente número, carpetas que ya existen, o directo en el fit (como en Polo).
+function designOptions() {
+  const fitPath = mk.zone + '/' + mk.fit;
+  const subs = subfolders(fitPath);
+  const nums = subs.filter(isNum);
+  const direct = garmentsIn(fitPath).length > 0;
+  const opts = [];
+  if (nums.length || (!subs.length && !direct)) opts.push('new');
+  opts.push(...subs);
+  if (direct || !nums.length) opts.push('.');
+  return { opts, next: Math.max(0, ...nums.map(Number)) + 1 };
+}
+function mkParent() {
+  if (!mk.zone || !mk.fit || mk.design == null) return null;
+  const seg = mk.design === 'new' ? String(designOptions().next) : mk.design === '.' ? '' : mk.design;
+  return [mk.zone, mk.fit, seg].filter(Boolean).join('/');
+}
+
+function mkFootHtml() {
+  const parent = mkParent();
+  const name = formatName(mk.sizes, mk.color.trim());
+  const missing = !mk.zone ? 'Elige la zona' : !mk.fit ? 'Elige el fit' : mk.design == null ? 'Elige el diseño'
+    : !name ? 'Pon las tallas o el color' : !mk.files.length ? 'Elige las fotos' : '';
+  return `<div class="preview">${parent ? `<span class="path">${esc(parent.split('/').join(' › '))} ›</span>` : ''}
+      <span class="new">${name ? esc(name) : '—'}</span>
+      ${mk.files.length ? `<span class="path">${plural(mk.files.length, 'foto sale', 'fotos salen')} de Descargas</span>` : ''}</div>
+    <div class="d-actions"><button class="btn solid" data-act="create" ${missing ? 'disabled' : ''}>${icon('check')}<span>Crear prenda</span></button>${missing ? `<span class="hint">${missing}</span>` : ''}</div>`;
+}
+
+function renderMaker(keepFocus) {
+  const m = $('#maker');
+  const top = m.scrollTop;
+  const focused = keepFocus && document.activeElement?.dataset?.focusKey;
+  const zones = subfolders('');
+  if (mk.zone && !zones.includes(mk.zone)) zones.push(mk.zone);
+  const fits = mk.zone ? subfolders(mk.zone) : [];
+  if (mk.fit && !fits.includes(mk.fit)) fits.push(mk.fit);
+  const chips = (kind, names, cur) => names.map((n) => `<button class="chip" data-mk="${kind}" data-v="${esc(n)}" aria-pressed="${n === cur}">${esc(n)}${
+    state.folders.includes(kind === 'zone' ? n : mk.zone + '/' + n) ? '' : '<i>nueva</i>'}</button>`).join('');
+  const adder = (kind, label, prefill, placeholder) => (mk.adding === kind
+    ? `<input class="field" data-new="${kind}" value="${esc(prefill)}" placeholder="${placeholder}" autocomplete="off" spellcheck="false">`
+    : `<button class="chip add" data-add="${kind}">${icon('plus')}${label}</button>`);
+
+  let design = '';
+  if (mk.zone && mk.fit) {
+    const { opts, next } = designOptions();
+    if (!opts.includes(mk.design)) mk.design = opts.includes('new') ? 'new' : opts.length === 1 ? opts[0] : null;
+    const ph = (path) => {
+      const gs = garmentsIn(path);
+      return gs.slice(0, 3).map((g) => `<img src="${imgUrl(g, images(g)[0].file)}" loading="lazy" alt="" title="${esc(g.name)}">`).join('') || '<span></span>';
+    };
+    const card = (o) => {
+      const label = o === 'new' ? `Nuevo · N.º ${next}` : o === '.' ? 'Sin número' : isNum(o) ? `N.º ${o}` : o;
+      const pics = o === 'new' ? `<span></span><span>${icon('plus')}</span><span></span>` : ph(o === '.' ? mk.zone + '/' + mk.fit : `${mk.zone}/${mk.fit}/${o}`);
+      return `<button class="design" data-mk="design" data-v="${esc(o)}" aria-pressed="${o === mk.design}"><div class="ph">${pics}</div><b>${esc(label)}</b></button>`;
+    };
+    if (opts.length > 1) {
+      design = `<div class="mk-sec"><p><span>Diseño</span><span>Otro color de una que ya existe: elígela</span></p>
+        <div class="designs">${opts.map(card).join('')}</div></div>`;
+    }
+  }
+  const units = Object.values(mk.sizes).reduce((a, b) => a + b, 0);
+  const colors = [...new Set(state.garments.map((g) => g.rest).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const dls = mk.downloads === null ? '<p class="mk-empty">Leyendo Descargas…</p>'
+    : mk.dlError ? `<p class="mk-empty">${esc(mk.dlError)}</p>`
+    : !mk.downloads.length ? `<p class="mk-empty">No hay fotos en ${esc(mk.dlDir)}.</p>`
+    : `<div class="dls">${mk.downloads.map((f) => {
+        const i = mk.files.indexOf(f);
+        return `<button class="dl" data-file="${esc(f)}" aria-pressed="${i >= 0}" title="${esc(f)}"><img src="/dl/${encodeURIComponent(f)}" loading="lazy" decoding="async" alt="">${i >= 0 ? `<span class="n">${i + 1}</span>` : ''}</button>`;
+      }).join('')}</div>`;
+
+  m.innerHTML = `
+    <div class="d-head"><button class="btn icon" data-act="close" aria-label="Cerrar">${icon('x')}</button><h2>Nueva prenda</h2></div>
+    <div class="d-body">
+      <div class="mk-sec"><p><span>Zona</span></p><div class="opts">${chips('zone', zones, mk.zone)}${adder('zone', 'Nueva zona', '', 'Ej. Zona polos colgados 400.000')}</div></div>
+      ${mk.zone ? `<div class="mk-sec"><p><span>Fit</span></p><div class="opts">${chips('fit', fits, mk.fit)}${
+        adder('fit', 'Nuevo fit', fits.length && fits.every(isNum) ? String(Math.max(...fits.map(Number)) + 1) : '', 'Ej. Classic fit')}</div></div>` : ''}
+      ${design}
+      <div class="mk-sec"><p><span>Tallas y color</span><span>${plural(units, 'unidad', 'unidades')}</span></p>
+        <div class="steps">${SIZES.map((s) => {
+          const n = mk.sizes[s] || 0;
+          return `<div class="step${n ? ' on' : ''}"><span class="lbl">${s}</span>
+            <div class="ctl"><button data-size="${s}" data-d="-1" data-focus-key="${s}-" ${n ? '' : 'disabled'} aria-label="Quitar una ${s}">${icon('minus')}</button><output aria-label="${s}">${n}</output><button data-size="${s}" data-d="1" data-focus-key="${s}+" aria-label="Agregar una ${s}">${icon('plus')}</button></div></div>`;
+        }).join('')}</div>
+        <input class="field" id="mkColor" list="mkColors" value="${esc(mk.color)}" placeholder="Color, ej. Azul oscuro" autocomplete="off" spellcheck="false" aria-label="Color">
+        <datalist id="mkColors">${colors.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
+      </div>
+      <div class="mk-sec"><p><span>Fotos de Descargas</span><button class="btn icon" data-act="dl-refresh" title="Volver a leer Descargas" aria-label="Volver a leer Descargas">${icon('refresh')}</button></p>${dls}</div>
+    </div>
+    <div class="d-foot" id="mkFoot">${mkFootHtml()}</div>`;
+  m.scrollTop = top;
+  if (mk.adding) m.querySelector('[data-new]')?.focus();
+  else if (focused) m.querySelector(`[data-focus-key="${focused}"]`)?.focus();
+}
+const renderMakerFoot = () => { $('#mkFoot').innerHTML = mkFootHtml(); };
+
+async function loadDownloads() {
+  const r = await api('/api/downloads');
+  Object.assign(mk, { downloads: r.files || [], dlDir: r.dir || '', dlError: r.error || '' });
+  mk.files = mk.files.filter((f) => mk.downloads.includes(f));
+  if (!$('#maker').hidden) renderMaker();
+}
+function openMaker() {
+  if (!$('#drawer').hidden) { if (holdDraft()) return; closeDrawer(); }
+  $('#maker').hidden = false;
+  renderMaker();
+  loadDownloads();
+}
+function closeMaker() { mk.adding = ''; $('#maker').hidden = true; }
+
+function commitNew(input) {
+  const kind = input.dataset.new;
+  if (mk.adding !== kind) return;
+  const v = input.value.trim().replace(/\s+/g, ' ');
+  mk.adding = '';
+  if (v && BAD_NAME.test(v)) { renderMaker(); return toast(`El nombre no puede llevar \\ / : * ? " < > | ni terminar en punto`, 'err'); }
+  if (v && kind === 'zone') { mk.zone = v; mk.fit = ''; mk.design = null; }
+  if (v && kind === 'fit') { mk.fit = v; mk.design = null; }
+  savePrefs();
+  renderMaker();
+}
+
+let creating = false;
+async function createGarment() {
+  const parent = mkParent();
+  if (creating || !parent || !formatName(mk.sizes, mk.color.trim()) || !mk.files.length) return;
+  creating = true;
+  const btn = $('#maker [data-act="create"]');
+  btn.disabled = true; btn.querySelector('span').textContent = 'Creando…';
+  const snap = { sizes: { ...mk.sizes }, color: mk.color, files: [...mk.files], design: mk.design };
+  const r = await api('/api/create', { parent, sizes: mk.sizes, color: mk.color.trim(), files: mk.files });
+  creating = false;
+  if (r.error) { renderMaker(); return toast(r.error, 'err'); }
+  const g = r.garment;
+  if (mk.design === 'new') mk.design = parent.split('/')[2];  // la siguiente prenda va al mismo diseño
+  Object.assign(mk, { sizes: {}, color: '', files: [] });
+  savePrefs();
+  await load(true);
+  loadDownloads();
+  const tile = document.querySelector(`.tile[data-path="${CSS.escape(g.path)}"]`);
+  if (tile) { tile.scrollIntoView({ block: 'center', behavior: 'smooth' }); tile.classList.add('flash'); }
+  toast(`Creada <b>${esc(g.name)}</b> en ${esc(parent.split('/').slice(1).join(' › '))}`, 'ok', { label: 'Deshacer', run: async () => {
+    const u = await api('/api/uncreate', { path: g.path, files: r.files });
+    if (u.error) return toast(u.error, 'err');
+    Object.assign(mk, snap);
+    await load(true);
+    await loadDownloads();
+    toast('Deshecho: las fotos volvieron a Descargas', 'ok');
+  } });
+}
+
+/* ---------- visor ---------- */
+const viewer = { g: null, i: 0 };
+function openViewer(g, i) {
+  viewer.g = g; viewer.i = i;
+  $('#vStrip').innerHTML = g.images.length > 1 ? g.images.map((im, k) => `<img src="${imgUrl(g, im.file)}" data-i="${k}" alt="">`).join('') : '';
+  showViewer();
+  $('#viewer').showModal();
+}
+function showViewer() {
+  const { g, i } = viewer;
+  const im = g.images[i];
+  $('#vStage').classList.remove('full');
+  $('#vImg').src = imgUrl(g, im.file);
+  $('#vName').textContent = `${g.name} · ${im.file}`;
+  $('#vNum').textContent = g.images.length > 1 ? `${i + 1} / ${g.images.length}` : '';
+  $('#vPrev').hidden = $('#vNext').hidden = g.images.length < 2;
+  $('#vStrip').querySelectorAll('img').forEach((t) => t.classList.toggle('on', +t.dataset.i === i));
+}
+function stepViewer(d) {
+  const n = viewer.g.images.length;
+  viewer.i = (viewer.i + d + n) % n;
+  showViewer();
+}
+
+/* ---------- aviso ---------- */
+let toastTimer;
+function toast(html, kind = '', action) {
+  const el = $('#toast');
+  el.className = kind;
+  el.innerHTML = `${kind === 'ok' ? '<svg class="i ticks"><use href="#i-ticks"/></svg>' : ''}<span class="msg">${html}</span>${action ? `<button class="btn">${icon('back')}${action.label}</button>` : ''}`;
+  if (action) el.querySelector('button').onclick = () => { el.classList.remove('show'); action.run(); };
+  requestAnimationFrame(() => el.classList.add('show'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), action ? 10000 : 4000);
+}
+
+/* ---------- datos ---------- */
+async function load(quiet) {
+  if (!quiet) { state.loading = true; render(); }  // quiet: sin pantalla de carga, conserva el scroll
+  const s = await api('/api/state');
+  Object.assign(state, { root: s.root, missing: !!s.missing, garments: s.garments || [], folders: s.folders || [], loading: false });
+  if (state.zone && !state.garments.some((g) => g.group[0] === state.zone)) { state.zone = ''; savePrefs(); }
+  if (state.sel && !find(state.sel)) closeDrawer();
+  render();
+  if (state.sel) renderDrawer();
+  if (!$('#maker').hidden) renderMaker();
+}
+async function pick() {
+  toast('Elige la carpeta en la ventana que se abrió…');
+  const r = await api('/api/pick', {});
+  $('#toast').classList.remove('show');
+  if (r.error) return toast(r.error, 'err');
+  if (r.root) { state.zone = ''; state.q = ''; $('#q').value = ''; closeDrawer(); $('#wall').scrollTop = 0; savePrefs(); load(); }
+}
+
+/* ---------- eventos ---------- */
+let qTimer;
+$('#q').addEventListener('input', (e) => {
+  $('#qClear').hidden = !e.target.value;
+  clearTimeout(qTimer);
+  qTimer = setTimeout(() => { state.q = e.target.value.trim(); $('#wall').scrollTop = 0; render(); }, 120);
+});
+$('#qClear').onclick = () => { $('#q').value = ''; $('#qClear').hidden = true; state.q = ''; render(); $('#q').focus(); };
+$('#tNoUsar').onclick = () => { state.showNoUsar = !state.showNoUsar; savePrefs(); render(); };
+$('#tTela').onclick = () => { state.showTela = !state.showTela; savePrefs(); render(); };
+$('#zoom').value = state.tile;
+$('#zoom').oninput = (e) => { state.tile = +e.target.value; document.documentElement.style.setProperty('--tile', state.tile + 'px'); };
+$('#zoom').onchange = savePrefs;
+$('#reload').onclick = () => load();
+$('#pick').onclick = pick;
+$('#new').onclick = openMaker;
+$('#chips').onclick = (e) => {
+  const c = e.target.closest('.chip');
+  if (!c) return;
+  state.zone = c.dataset.zone; savePrefs(); $('#wall').scrollTop = 0; render();
+};
+
+const wall = $('#wall');
+wall.addEventListener('click', (e) => {
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'pick') return pick();
+  if (act === 'reload') return load();
+  if (act === 'clear') { state.q = ''; state.zone = ''; $('#q').value = ''; $('#qClear').hidden = true; savePrefs(); return render(); }
+  const tile = e.target.closest('.tile');
+  if (!tile) return;
+  const thumb = e.target.closest('.thumbs img');
+  const g = find(tile.dataset.path);
+  if (thumb && g) return openViewer(g, g.images.indexOf(images(g)[+thumb.dataset.i]));
+  if (tile.dataset.path !== state.sel && holdDraft()) return;
+  warned = false;
+  closeMaker();
+  openDrawer(tile.dataset.path);
+});
+wall.addEventListener('mouseover', (e) => {
+  const t = e.target.closest('.thumbs img');
+  if (!t) return;
+  const tile = t.closest('.tile');
+  tile.querySelector('.plate img').src = t.src;
+  tile.querySelectorAll('.thumbs img').forEach((x) => x.classList.toggle('on', x === t));
+});
+wall.addEventListener('mouseout', (e) => {
+  const box = e.target.closest('.thumbs');
+  if (!box || box.contains(e.relatedTarget)) return;
+  const first = box.querySelector('img');
+  box.closest('.tile').querySelector('.plate img').src = first.src;
+  box.querySelectorAll('img').forEach((x) => x.classList.toggle('on', x === first));
+});
+document.addEventListener('error', (e) => {
+  if (e.target.tagName === 'IMG') e.target.closest('.plate, .big')?.classList.add('broken');
+}, true);
+
+$('#drawer').addEventListener('click', (e) => {
+  const g = find(state.sel);
+  if (!g) return;
+  const step = e.target.closest('[data-size]');
+  if (step) {
+    const s = step.dataset.size;
+    state.draft[s] = Math.max(0, (state.draft[s] || 0) + +step.dataset.d);
+    warned = false;
+    return renderDrawer(true);
+  }
+  const thumb = e.target.closest('.thumbs img');
+  if (thumb) {
+    const i = +thumb.dataset.i;
+    $('#drawer .big').dataset.i = i;
+    $('#drawer .big img').src = thumb.src;
+    $('#drawer').querySelectorAll('.thumbs img').forEach((x) => x.classList.toggle('on', x === thumb));
+    return;
+  }
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'close') { if (!holdDraft()) closeDrawer(); }
+  else if (act === 'view') openViewer(g, +e.target.closest('[data-act]').dataset.i);
+  else if (act === 'discard') { state.draft = { ...g.sizes }; renderDrawer(); }
+  else if (act === 'save') rename(g, { sizes: state.draft });
+  else if (act === 'reveal') api('/api/reveal', { path: g.path }).then((r) => r.error && toast(r.error, 'err'));
+});
+
+const maker = $('#maker');
+maker.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-mk], [data-add], [data-size], [data-file], [data-act]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.mk) {
+    if (d.mk === 'zone' && d.v !== mk.zone) Object.assign(mk, { zone: d.v, fit: '', design: null });
+    else if (d.mk === 'fit' && d.v !== mk.fit) Object.assign(mk, { fit: d.v, design: null });
+    else if (d.mk === 'design') mk.design = d.v;
+    mk.adding = ''; savePrefs(); return renderMaker();
+  }
+  if (d.add) { mk.adding = d.add; return renderMaker(); }
+  if (d.size) { mk.sizes[d.size] = Math.max(0, (mk.sizes[d.size] || 0) + +d.d); return renderMaker(true); }
+  if (d.file) {
+    // Sin re-render: solo marcar la foto y renumerar, para no recargar las miniaturas.
+    const i = mk.files.indexOf(d.file);
+    if (i >= 0) mk.files.splice(i, 1); else mk.files.push(d.file);
+    maker.querySelectorAll('.dl').forEach((b) => {
+      const k = mk.files.indexOf(b.dataset.file);
+      b.setAttribute('aria-pressed', k >= 0);
+      b.querySelector('.n')?.remove();
+      if (k >= 0) b.insertAdjacentHTML('beforeend', `<span class="n">${k + 1}</span>`);
+    });
+    return renderMakerFoot();
+  }
+  if (d.act === 'close') closeMaker();
+  else if (d.act === 'create') createGarment();
+  else if (d.act === 'dl-refresh') { mk.downloads = null; renderMaker(); loadDownloads(); }
+});
+maker.addEventListener('input', (e) => {
+  if (e.target.id === 'mkColor') { mk.color = e.target.value; renderMakerFoot(); }
+});
+maker.addEventListener('keydown', (e) => {
+  if (e.target.dataset.new) {
+    if (e.key === 'Enter') commitNew(e.target);
+    if (e.key === 'Escape') { e.stopPropagation(); mk.adding = ''; renderMaker(); }
+  } else if (e.target.id === 'mkColor' && e.key === 'Enter') createGarment();
+});
+maker.addEventListener('focusout', (e) => { if (e.target.dataset.new) commitNew(e.target); });
+
+$('#vClose').onclick = () => $('#viewer').close();
+$('#vPrev').onclick = () => stepViewer(-1);
+$('#vNext').onclick = () => stepViewer(1);
+$('#vImg').onclick = () => $('#vStage').classList.toggle('full');
+$('#vStrip').onclick = (e) => { const t = e.target.closest('img'); if (t) { viewer.i = +t.dataset.i; showViewer(); } };
+$('#viewer').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') stepViewer(-1);
+  if (e.key === 'ArrowRight') stepViewer(1);
+});
+
+document.addEventListener('keydown', (e) => {
+  if ($('#viewer').open) return;
+  const typing = !!e.target.closest?.('input, textarea');
+  if ((e.key === 'f' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) { e.preventDefault(); $('#q').focus(); $('#q').select(); }
+  else if (e.key === 'Escape') {
+    if (!$('#maker').hidden) closeMaker();
+    else if (!$('#drawer').hidden) { if (!holdDraft()) closeDrawer(); }
+    else if (state.q) $('#qClear').click();
+  }
+});
+
+render();
+load();
+</script>
+</body>
+</html>
