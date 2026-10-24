@@ -21,13 +21,13 @@ CONFIG = DATA / "config.json"
 
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
 # Guía oficial de Lacoste (lacoste.com/fr/guidedestailles): mujer en talla francesa T32–T48,
-# niño por edad con su estatura en cm.
-KID_CM = {"1A": 80, "2A": 92, "3A": 98, "4A": 104, "5A": 110, "6A": 116, "8A": 128,
+# niño por edad con su estatura en cm. 7A no sale en la guía: 122 cm es la estatura europea estándar.
+KID_CM = {"1A": 80, "2A": 92, "3A": 98, "4A": 104, "5A": 110, "6A": 116, "7A": 122, "8A": 128,
           "10A": 140, "12A": 152, "14A": 164, "16A": 176}
 SIZES = (["XS", "S", "M", "L", "XL"] + [f"{n}XL" for n in range(2, 10)]
          + [f"T{n}" for n in range(32, 50, 2)] + list(KID_CM))
 # "S", "2.S" (dos S) o "S.2" (también dos S); igual "T36" o "2.14A"
-SIZE_RE = re.compile(r"^(?:(\d+)\.)?(XS|S|M|L|XL|[2-9]XL|T(?:3[2468]|4[02468])|(?:1[0246]|[1-68])A)(?:\.(\d+))?$", re.I)
+SIZE_RE = re.compile(r"^(?:(\d+)\.)?(XS|S|M|L|XL|[2-9]XL|T(?:3[2468]|4[02468])|(?:1[0246]|[1-8])A)(?:\.(\d+))?$", re.I)
 TOKEN_RE = re.compile(r"([^\s,]+)[\s,]*")
 CM_RE = re.compile(r"\d+cm(?:[\s,]+|$)", re.I)  # "14A 164cm": la estatura va pegada a la talla de niño
 TELA_RE = re.compile(r"\btela\b", re.I)

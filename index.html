@@ -285,13 +285,13 @@ main { display: flex; min-height: 0; }
 
 <script>
 // Guía oficial de Lacoste: mujer en talla francesa (con su letra), niño por edad (con su estatura).
-const KID_CM = { '1A': 80, '2A': 92, '3A': 98, '4A': 104, '5A': 110, '6A': 116, '8A': 128, '10A': 140, '12A': 152, '14A': 164, '16A': 176 };
+const KID_CM = { '1A': 80, '2A': 92, '3A': 98, '4A': 104, '5A': 110, '6A': 116, '7A': 122, '8A': 128, '10A': 140, '12A': 152, '14A': 164, '16A': 176 };
 const WOMAN_ALPHA = { T32: 'XS', T34: 'S', T36: 'S', T38: 'M', T40: 'M', T42: 'L', T44: 'L', T46: 'XL', T48: 'XL' };
 const GROUPS = { h: ['Hombre', ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']], m: ['Mujer', Object.keys(WOMAN_ALPHA)], n: ['Niño', Object.keys(KID_CM)] };
 const SIZES = Object.values(GROUPS).flatMap(([, s]) => s);
 const groupOf = (sizes) => Object.keys(GROUPS).find((k) => GROUPS[k][1].some((s) => sizes[s] > 0));
 const sizeLabel = (s) => (KID_CM[s] ? `${s} ${KID_CM[s]}cm` : s);
-const SIZE_RE = /^(?:\d+\.)?(xs|s|m|l|xl|[2-9]xl|t(?:3[2468]|4[02468])|(?:1[0246]|[1-68])a)$/i;
+const SIZE_RE = /^(?:\d+\.)?(xs|s|m|l|xl|[2-9]xl|t(?:3[2468]|4[02468])|(?:1[0246]|[1-8])a)$/i;
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fold = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
