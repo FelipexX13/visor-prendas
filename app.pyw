@@ -20,10 +20,16 @@ DATA = Path(os.environ.get("LOCALAPPDATA", HERE)) / "VisorPrendas"
 CONFIG = DATA / "config.json"
 
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
-SIZES = ["XS", "S", "M", "L", "XL"] + [f"{n}XL" for n in range(2, 10)]
-# "S", "2.S" (dos S) o "S.2" (también dos S)
-SIZE_RE = re.compile(r"^(?:(\d+)\.)?(XS|S|M|L|XL|[2-9]XL)(?:\.(\d+))?$", re.I)
+# Guía oficial de Lacoste (lacoste.com/fr/guidedestailles): mujer en talla francesa T32–T48,
+# niño por edad con su estatura en cm.
+KID_CM = {"1A": 80, "2A": 92, "3A": 98, "4A": 104, "5A": 110, "6A": 116, "8A": 128,
+          "10A": 140, "12A": 152, "14A": 164, "16A": 176}
+SIZES = (["XS", "S", "M", "L", "XL"] + [f"{n}XL" for n in range(2, 10)]
+         + [f"T{n}" for n in range(32, 50, 2)] + list(KID_CM))
+# "S", "2.S" (dos S) o "S.2" (también dos S); igual "T36" o "2.14A"
+SIZE_RE = re.compile(r"^(?:(\d+)\.)?(XS|S|M|L|XL|[2-9]XL|T(?:3[2468]|4[02468])|(?:1[0246]|[1-68])A)(?:\.(\d+))?$", re.I)
 TOKEN_RE = re.compile(r"([^\s,]+)[\s,]*")
+CM_RE = re.compile(r"\d+cm(?:[\s,]+|$)", re.I)  # "14A 164cm": la estatura va pegada a la talla de niño
 TELA_RE = re.compile(r"\btela\b", re.I)
 BAD_CHARS = set('<>:"/\\|?*')
 
@@ -58,11 +64,14 @@ def parse_name(name):
         size = s.group(2).upper()
         sizes[size] = sizes.get(size, 0) + int(s.group(1) or s.group(3) or 1)
         rest = rest[m.end():]
+        if size in KID_CM and (cm := CM_RE.match(rest)):
+            rest = rest[cm.end():]
     return sizes, rest.strip()
 
 
 def format_name(sizes, rest):
-    parts = [f"{n}.{s}" if n > 1 else s for s in SIZES if (n := sizes.get(s, 0)) > 0]
+    label = lambda s: f"{s} {KID_CM[s]}cm" if s in KID_CM else s
+    parts = [f"{n}.{label(s)}" if n > 1 else label(s) for s in SIZES if (n := sizes.get(s, 0)) > 0]
     return " ".join(p for p in (", ".join(parts), rest) if p)
 
 

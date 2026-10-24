@@ -16,7 +16,9 @@ Doble clic en `app.pyw` y elige la carpeta raíz de las fotos. La recuerda para 
 
 - Una prenda es una carpeta con imágenes dentro.
 - Su nombre es `<tallas> <color o notas>`, por ejemplo `S, 2.M, 3.2XL Azul ok`. `2.M` (o `M.2`) son dos
-  unidades de M; una talla sola es una.
+  unidades de M; una talla sola es una. Mujer va en talla francesa con `T` (`T36, 2.T38 Blanco`, para no
+  confundirse con las carpetas de diseño `32`, `36`…) y niño por edad con su estatura (`2.14A 164cm Azul`),
+  según la guía oficial de lacoste.com/fr/guidedestailles.
 - Las carpetas que empiezan por `NO USAR` y las fotos de tela (`Tela.*`) se ocultan por defecto.
 
 ## Qué hace

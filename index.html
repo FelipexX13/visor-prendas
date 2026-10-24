@@ -138,6 +138,7 @@ main { display: flex; min-height: 0; }
 .step { background: var(--bg); border-radius: 8px; padding: 6px 4px 4px; display: grid; justify-items: center; gap: 2px; box-shadow: inset 0 0 0 1px transparent;
   transition: box-shadow .2s var(--ease); }
 .step .lbl { font-weight: 600; color: var(--muted); }
+.step .lbl i { font-style: normal; font-weight: 400; font-size: 12px; }
 .step.on .lbl { color: var(--text); }
 .step.changed { box-shadow: inset 0 0 0 1px var(--muted); }
 .step .ctl { display: flex; align-items: center; }
@@ -283,8 +284,14 @@ main { display: flex; min-height: 0; }
 <div id="toast" role="status" aria-live="polite"><span class="msg"></span></div>
 
 <script>
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
-const SIZE_RE = /^(?:\d+\.)?(xs|s|m|l|xl|[2-9]xl)$/i;
+// Guía oficial de Lacoste: mujer en talla francesa (con su letra), niño por edad (con su estatura).
+const KID_CM = { '1A': 80, '2A': 92, '3A': 98, '4A': 104, '5A': 110, '6A': 116, '8A': 128, '10A': 140, '12A': 152, '14A': 164, '16A': 176 };
+const WOMAN_ALPHA = { T32: 'XS', T34: 'S', T36: 'S', T38: 'M', T40: 'M', T42: 'L', T44: 'L', T46: 'XL', T48: 'XL' };
+const GROUPS = { h: ['Hombre', ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']], m: ['Mujer', Object.keys(WOMAN_ALPHA)], n: ['Niño', Object.keys(KID_CM)] };
+const SIZES = Object.values(GROUPS).flatMap(([, s]) => s);
+const groupOf = (sizes) => Object.keys(GROUPS).find((k) => GROUPS[k][1].some((s) => sizes[s] > 0));
+const sizeLabel = (s) => (KID_CM[s] ? `${s} ${KID_CM[s]}cm` : s);
+const SIZE_RE = /^(?:\d+\.)?(xs|s|m|l|xl|[2-9]xl|t(?:3[2468]|4[02468])|(?:1[0246]|[1-68])a)$/i;
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fold = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -298,14 +305,14 @@ const prefs = (() => { try { return JSON.parse(localStorage.getItem('visor') || 
 const state = {
   garments: [], folders: [], root: null, missing: false, loading: true,
   showNoUsar: !!prefs.showNoUsar, showTela: !!prefs.showTela, tile: prefs.tile || 220, zone: prefs.zone || '',
-  q: '', sel: null, draft: null,
+  q: '', sel: null, draft: null, group: 'h',
 };
 // Formulario de nueva prenda. design: 'new' = siguiente número, '.' = directo en el fit, o el nombre de la carpeta.
-const mk = { zone: prefs.mkZone || '', fit: prefs.mkFit || '', design: prefs.mkDesign ?? null, sizes: {}, color: '', files: [], downloads: null, dlDir: '', adding: '' };
+const mk = { zone: prefs.mkZone || '', fit: prefs.mkFit || '', design: prefs.mkDesign ?? null, group: GROUPS[prefs.mkGroup] ? prefs.mkGroup : 'h', sizes: {}, color: '', files: [], downloads: null, dlDir: '', adding: '' };
 function savePrefs() {
   try {
     localStorage.setItem('visor', JSON.stringify({ showNoUsar: state.showNoUsar, showTela: state.showTela, tile: state.tile, zone: state.zone,
-      mkZone: mk.zone, mkFit: mk.fit, mkDesign: mk.design }));
+      mkZone: mk.zone, mkFit: mk.fit, mkDesign: mk.design, mkGroup: mk.group }));
   } catch {}
 }
 
@@ -317,7 +324,7 @@ async function api(path, body) {
 }
 
 function formatName(sizes, rest) {
-  const parts = SIZES.concat(Object.keys(sizes).filter((s) => !SIZES.includes(s))).filter((s) => sizes[s] > 0).map((s) => (sizes[s] > 1 ? `${sizes[s]}.${s}` : s));
+  const parts = SIZES.concat(Object.keys(sizes).filter((s) => !SIZES.includes(s))).filter((s) => sizes[s] > 0).map((s) => (sizes[s] > 1 ? `${sizes[s]}.${sizeLabel(s)}` : sizeLabel(s)));
   return [parts.join(', '), rest].filter(Boolean).join(' ');
 }
 
@@ -339,7 +346,21 @@ function visible() {
 function sizesHtml(g) {
   const list = SIZES.concat(Object.keys(g.sizes).filter((s) => !SIZES.includes(s))).filter((s) => g.sizes[s] > 0);
   if (!list.length) return '<span class="sz none">Sin tallas</span>';
-  return list.map((s) => `<span class="sz">${s}${g.sizes[s] > 1 ? `<i>×${g.sizes[s]}</i>` : ''}</span>`).join('');
+  return list.map((s) => `<span class="sz">${s}${KID_CM[s] ? `<i>${KID_CM[s]}cm</i>` : ''}${g.sizes[s] > 1 ? `<i>×${g.sizes[s]}</i>` : ''}</span>`).join('');
+}
+// Selector Hombre / Mujer / Niño y los contadores de talla (panel y nueva prenda).
+function groupsHtml(cur) {
+  return `<div class="opts">${Object.entries(GROUPS).map(([k, [label]]) => `<button class="chip" data-group="${k}" aria-pressed="${k === cur}">${label}</button>`).join('')}</div>`;
+}
+function stepsHtml(list, counts, saved) {
+  return `<div class="steps">${list.map((s) => {
+    const n = counts[s] || 0;
+    const hint = KID_CM[s] ? `${KID_CM[s]} cm` : WOMAN_ALPHA[s] || '';
+    return `<div class="step${n ? ' on' : ''}${saved && n !== (saved[s] || 0) ? ' changed' : ''}">
+      <span class="lbl">${s}${hint ? ` <i>${hint}</i>` : ''}</span>
+      <div class="ctl"><button data-size="${s}" data-d="-1" data-focus-key="${s}-" ${n ? '' : 'disabled'} aria-label="Quitar una ${s}">${icon('minus')}</button><output aria-label="${s}">${n}</output><button data-size="${s}" data-d="1" data-focus-key="${s}+" aria-label="Agregar una ${s}">${icon('plus')}</button></div>
+    </div>`;
+  }).join('')}</div>`;
 }
 // Sección = zona › fit. Una carpeta numérica es un diseño, no un fit: va en la ficha.
 function secParts(g) {
@@ -447,7 +468,7 @@ const find = (path) => state.garments.find((g) => g.path === path);
 function openDrawer(path) {
   const g = find(path);
   if (!g) return closeDrawer();
-  if (state.sel !== path) state.draft = { ...g.sizes };
+  if (state.sel !== path) { state.draft = { ...g.sizes }; state.group = groupOf(g.sizes) || 'h'; }
   document.querySelectorAll('.tile.sel').forEach((t) => t.classList.remove('sel'));
   state.sel = path;
   document.querySelector(`.tile[data-path="${CSS.escape(path)}"]`)?.classList.add('sel');
@@ -477,8 +498,10 @@ function renderDrawer(keepFocus) {
   const focused = keepFocus && document.activeElement?.dataset?.focusKey;
   const draft = state.draft;
   const newName = formatName(draft, g.rest);
-  const all = SIZES.concat(Object.keys(g.sizes).filter((s) => !SIZES.includes(s)));
-  const changed = all.some((s) => (draft[s] || 0) !== (g.sizes[s] || 0));
+  // Las del grupo elegido, más las de otro grupo que ya tengan unidades.
+  const all = SIZES.filter((s) => GROUPS[state.group][1].includes(s) || draft[s] || g.sizes[s])
+    .concat(Object.keys(g.sizes).filter((s) => !SIZES.includes(s)));
+  const changed = Object.keys({ ...g.sizes, ...draft }).some((s) => (draft[s] || 0) !== (g.sizes[s] || 0));
   const where = [...secParts(g), designLabel(g)].filter(Boolean).join(' › ') || state.root || '';
   dr.innerHTML = `
     <div class="d-head"><button class="btn icon" data-act="close" aria-label="Cerrar panel">${icon('x')}</button><h2>Prenda</h2>
@@ -489,13 +512,8 @@ function renderDrawer(keepFocus) {
       <div class="d-title"><h3>${esc(g.rest || g.name)}</h3><p>${esc(where)}</p></div>
       <div>
         <p class="d-label"><span>Tallas</span><span>${plural(all.reduce((a, s) => a + (draft[s] || 0), 0), 'unidad', 'unidades')}</span></p>
-        <div class="steps">${all.map((s) => {
-          const n = draft[s] || 0;
-          return `<div class="step${n ? ' on' : ''}${n !== (g.sizes[s] || 0) ? ' changed' : ''}">
-            <span class="lbl">${s}</span>
-            <div class="ctl"><button data-size="${s}" data-d="-1" data-focus-key="${s}-" ${n ? '' : 'disabled'} aria-label="Quitar una ${s}">${icon('minus')}</button><output aria-label="${s}">${n}</output><button data-size="${s}" data-d="1" data-focus-key="${s}+" aria-label="Agregar una ${s}">${icon('plus')}</button></div>
-          </div>`;
-        }).join('')}</div>
+        ${groupsHtml(state.group)}
+        ${stepsHtml(all, draft, g.sizes)}
       </div>
     </div>
     ${changed ? `<div class="d-foot">
@@ -613,11 +631,8 @@ function renderMaker(keepFocus) {
         adder('fit', 'Nuevo fit', fits.length && fits.every(isNum) ? String(Math.max(...fits.map(Number)) + 1) : '', 'Ej. Classic fit')}</div></div>` : ''}
       ${design}
       <div class="mk-sec"><p><span>Tallas y color</span><span>${plural(units, 'unidad', 'unidades')}</span></p>
-        <div class="steps">${SIZES.map((s) => {
-          const n = mk.sizes[s] || 0;
-          return `<div class="step${n ? ' on' : ''}"><span class="lbl">${s}</span>
-            <div class="ctl"><button data-size="${s}" data-d="-1" data-focus-key="${s}-" ${n ? '' : 'disabled'} aria-label="Quitar una ${s}">${icon('minus')}</button><output aria-label="${s}">${n}</output><button data-size="${s}" data-d="1" data-focus-key="${s}+" aria-label="Agregar una ${s}">${icon('plus')}</button></div></div>`;
-        }).join('')}</div>
+        ${groupsHtml(mk.group)}
+        ${stepsHtml(SIZES.filter((s) => GROUPS[mk.group][1].includes(s) || mk.sizes[s]), mk.sizes)}
         <input class="field" id="mkColor" list="mkColors" value="${esc(mk.color)}" placeholder="Color, ej. Azul oscuro" autocomplete="off" spellcheck="false" aria-label="Color">
         <datalist id="mkColors">${colors.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
       </div>
@@ -806,6 +821,8 @@ $('#drawer').addEventListener('click', (e) => {
     warned = false;
     return renderDrawer(true);
   }
+  const grp = e.target.closest('[data-group]');
+  if (grp) { state.group = grp.dataset.group; return renderDrawer(); }
   const thumb = e.target.closest('.thumbs img');
   if (thumb) {
     const i = +thumb.dataset.i;
@@ -824,9 +841,10 @@ $('#drawer').addEventListener('click', (e) => {
 
 const maker = $('#maker');
 maker.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-mk], [data-add], [data-size], [data-file], [data-act]');
+  const t = e.target.closest('[data-mk], [data-add], [data-size], [data-group], [data-file], [data-act]');
   if (!t) return;
   const d = t.dataset;
+  if (d.group) { mk.group = d.group; savePrefs(); return renderMaker(); }
   if (d.mk) {
     if (d.mk === 'zone' && d.v !== mk.zone) Object.assign(mk, { zone: d.v, fit: '', design: null });
     else if (d.mk === 'fit' && d.v !== mk.fit) Object.assign(mk, { fit: d.v, design: null });
