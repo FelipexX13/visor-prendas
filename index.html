@@ -131,6 +131,11 @@ main { display: flex; min-height: 0; }
 .big { display: flex; justify-content: center; width: 100%; position: relative; cursor: zoom-in; }
 .big img { height: 34vh; max-width: 100%; object-fit: cover; border-radius: 8px; background: var(--raised); display: block; }
 .d-body .thumbs img { width: 56px; height: 56px; }
+.d-name { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.d-name .btn { margin-top: -6px; }
+/* "Por editar" en ámbar: es un pendiente, no algo terminado como el verde. */
+.toggle.warn[aria-pressed="true"] { color: #f5c26b; }
+.toggle.warn[aria-pressed="true"] .dot { background: #f5c26b; border-color: #f5c26b; }
 .d-title h3 { font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
 .d-title p { color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
 .d-label { color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
@@ -509,7 +514,9 @@ function renderDrawer(keepFocus) {
     <div class="d-body">
       <button class="big" data-act="view" data-i="0" aria-label="Ver a pantalla completa"><img src="${imgUrl(g, g.images[0].file)}" alt=""></button>
       ${g.images.length > 1 ? `<div class="thumbs">${g.images.map((im, i) => `<img src="${imgUrl(g, im.file)}" data-i="${i}" class="${i ? '' : 'on'}" alt="" title="${esc(im.file)}">`).join('')}</div>` : ''}
-      <div class="d-title"><h3>${esc(g.rest || g.name)}</h3><p>${esc(where)}</p></div>
+      <div class="d-title"><div class="d-name"><h3>${esc(g.rest || g.name)}</h3>
+        <button class="btn toggle warn" data-act="editar" aria-pressed="${EDITAR.test(g.name)}" title="Pone o quita «editar» al final del nombre de la carpeta">
+          <span class="dot"><svg class="i"><use href="#i-check"/></svg></span>Por editar</button></div><p>${esc(where)}</p></div>
       <div>
         <p class="d-label"><span>Tallas</span><span>${plural(all.reduce((a, s) => a + (draft[s] || 0), 0), 'unidad', 'unidades')}</span></p>
         ${groupsHtml(state.group)}
@@ -525,6 +532,9 @@ function renderDrawer(keepFocus) {
   dr.hidden = false;
   if (focused) dr.querySelector(`[data-focus-key="${focused}"]`)?.focus();
 }
+
+const EDITAR = /\s+editar$/i; // marca al final del nombre: "L Verde editar" = prenda por cambiar
+const toggleEditar = (name) => (EDITAR.test(name) ? name.replace(EDITAR, '') : `${name} editar`);
 
 async function rename(g, body, isUndo) {
   const r = await api('/api/rename', { path: g.path, ...body });
@@ -836,6 +846,10 @@ $('#drawer').addEventListener('click', (e) => {
   else if (act === 'view') openViewer(g, +e.target.closest('[data-act]').dataset.i);
   else if (act === 'discard') { state.draft = { ...g.sizes }; renderDrawer(); }
   else if (act === 'save') rename(g, { sizes: state.draft });
+  else if (act === 'editar') {
+    const draft = state.draft; // las tallas sin guardar no se pierden al marcar
+    rename(g, { name: toggleEditar(g.name) }).then(() => { if (state.sel === g.path) { state.draft = draft; renderDrawer(); } });
+  }
   else if (act === 'reveal') api('/api/reveal', { path: g.path }).then((r) => r.error && toast(r.error, 'err'));
 });
 
